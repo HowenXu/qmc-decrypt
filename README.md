@@ -56,4 +56,4 @@ AuralDesk 桌面端将本工具随包分发（`qqapi/app/qmc_decrypt.py`），�
 
 [AGPL-3.0](LICENSE)。算法以 [unlock-music](https://github.com/rong6/unlock-music) 的官方 Rust 实现为参照逐一对拍移植。
 
-仅用于解密你自己合法下载、有权使用的音频文件。音乐平台不易，请尊重版权，支持正版。
+本项目仅供下载学习使用，请在24小时内自行删除。
