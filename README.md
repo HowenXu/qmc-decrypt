@@ -1,61 +1,63 @@
 # qmc-decrypt
 
-> 纯 Python、零依赖的 QQ 音乐 QMC 加密文件离线解密工具，单文件即用，为 Hi-Res 场景设计。
+> 中文版 README：[README.zh-CN.md](README.zh-CN.md)
 
-## 这是什么
+> Pure-Python, zero-dependency offline decryptor for QQ Music's QMC-encrypted files — a single-file tool built for the Hi-Res use case.
 
-`qmc_decrypt.py` 是一个单文件 Python 工具（约 1300 行，仅标准库），把 QQ 音乐下载的 QMC 加密音频（`.mflac` / `.mgg` / `.qmc0` 等）还原为可播放的原始文件。它是 [AuralDesk](https://github.com/HowenXu/AuralDesk) 的 Hi-Res 全链路中「解密」这一环的独立版本。
+## What it is
 
-## 与其他解密算法有什么不同
+`qmc_decrypt.py` is a single-file Python tool (≈1300 lines, standard library only) that restores QQ Music's encrypted downloads (`.mflac`, `.mgg`, `.qmc0`, …) to playable originals. It is the standalone release of the "decrypt" stage inside [AuralDesk](https://github.com/HowenXu/AuralDesk)'s Hi-Res pipeline.
 
-市面上已有的 QMC 解密实现大致是这几类：
+## How it differs from other decryptors
 
-- **unlock-music**（前端 JS / WebAssembly）：在浏览器里跑，交互为主，不适合作为本地程序的内置组件；
-- **qmcdump**（Rust）：需要编译或下载对应平台的二进制，对 Windows 老机器不算友好；
-- **各类 C# / 脚本小工具**：大多只覆盖旧版 v1 静态密钥，或需要 Node/Python 环境外加一堆依赖。
+Existing QMC tools mostly fall into a few buckets:
 
-**本工具的特点：**
+- **unlock-music** (browser JS / WebAssembly): interactive-first, awkward to embed into a local program;
+- **qmcdump** (Rust): needs a compiled binary per platform — not friendly on older Windows boxes;
+- assorted **C# / script tools**: usually only cover the legacy v1 static-key scheme, or need Node/Python plus a pile of dependencies.
 
-| 对比项 | 本工具 | 多数同类工具 |
+**This tool's angle:**
+
+| Aspect | This tool | Most peers |
 | --- | --- | --- |
-| 依赖 | 纯标准库，零第三方依赖 | 需要 Rust / Node / npm 包或编译器 |
-| 运行 | 单文件 `python qmc_decrypt.py xxx.mflac`，Windows / macOS / Linux 直接跑 | 需先构建或安装 |
-| 格式覆盖 | v1 静态密钥 + v2 内嵌 EKey（`QQMusic EncV2,Key:` 双层 TEA 与单层 V1）+ Map（短密钥）/ RC4（长密钥）两种流密码 | 多只支持其中一两种 |
-| 密钥来源 | 内嵌 EKey 直接离线解；无内嵌密钥时支持 `--ekey` 手动提供、`--ekey-db` 读安卓 `player_process_db`、`--frida-fallback` 借壳兜底 | 多数只认内嵌密钥 |
-| 自检 | 内置与 unlock-music 官方 Rust 实现逐一对拍的测试向量，`--self-test` 一键自检 | 多数没有 |
-| 场景 | 为「下载裸数据 + 服务器取 ekey 拼尾 → 离线解密出 Hi-Res FLAC」这条自动化链路设计 | 多为单文件手动解密 |
+| Dependencies | Standard library only, zero third-party deps | Need Rust / Node / npm packages or a compiler |
+| Running | `python qmc_decrypt.py xxx.mflac`, works on Windows / macOS / Linux as-is | Requires a build or install first |
+| Format coverage | v1 static key + v2 embedded EKey (`QQMusic EncV2,Key:` two-layer TEA and single-layer V1) + both Map (short-key) and RC4 (long-key) stream ciphers | Usually only one or two of these |
+| Key sources | Embedded EKey decrypts offline; for key-less files: `--ekey`, `--ekey-db` (Android `player_process_db`), `--frida-fallback` | Most only accept embedded keys |
+| Self-test | Ships test vectors ported 1:1 from the official unlock-music Rust implementation; `--self-test` verifies | Rarely present |
+| Use case | Built for the automated "download raw data + fetch ekey from server → offline decrypt to Hi-Res FLAC" chain | Single-file manual decryption |
 
-其中「从服务器取 ekey 再离线解密」这条路径，是本工具在 Hi-Res（96kHz）场景下比单纯依赖客户端内嵌密钥更实用的地方：PC 新版客户端下载的文件已不含内嵌密钥（MusicEx），而通过旧版下载链路拿到的文件带 ekey 尾，配合本工具即可稳定离线解出 Hi-Res 原始文件。
+The "fetch an ekey from the server and decrypt offline" path is what makes this practical for Hi-Res (96 kHz): current PC clients no longer embed a key (MusicEx), whereas files from the legacy download chain carry an ekey trailer — which this tool turns into the original Hi-Res file offline.
 
-## 使用方法
+## Usage
 
 ```bash
-# 单个文件（自动识别格式）
+# Single file (format auto-detected)
 python qmc_decrypt.py song.mflac
 
-# 批量解密整个目录
+# Batch a whole folder
 python qmc_decrypt.py ./music_dir -o ./decrypted
 
-# 无内嵌密钥时手动提供 ekey
+# Manual ekey for key-less files
 python qmc_decrypt.py song.mflac --ekey "eyJ..."
 
-# 从安卓端 player_process_db 取密钥
+# Pull keys from an Android player_process_db
 python qmc_decrypt.py song.mflac --ekey-db player_process_db
 
-# 自检（内置 Rust 对拍测试向量）
+# Self-test (Rust-ported vectors)
 python qmc_decrypt.py --self-test
 ```
 
-支持的格式：v1（`.tkm` / `.bkc*` / 十六进制扩展名）与 v2（`.mflac` / `.mgg` / `.mgg0` / `.mgg1` / `.mflac0` / `.mmp4` / `.qmcflac` / `.qmcogg` / `.qmc0` / `.qmc2` / `.qmc3` / `.qmc4` / `.qmc6` / `.qmc8`），含 `QQMusic EncV2,Key:` 双层 TEA 与单层 V1 两种 EKey 形式，以及 Map 与 RC4 两种流密码。
+Supported formats: v1 (`.tkm`, `.bkc*`, hex extensions) and v2 (`.mflac`, `.mgg`, `.mgg0`, `.mgg1`, `.mflac0`, `.mmp4`, `.qmcflac`, `.qmcogg`, `.qmc0`, `.qmc2`, `.qmc3`, `.qmc4`, `.qmc6`, `.qmc8`), including the `QQMusic EncV2,Key:` two-layer TEA and single-layer V1 EKey forms, and both Map and RC4 stream ciphers.
 
-## 集成
+## Integration
 
-AuralDesk 桌面端将本工具随包分发（`qqapi/app/qmc_decrypt.py`），流程为：QQ 音乐接口取下载地址 → 下载裸数据 → 服务器取 ekey 拼接文件尾 → 调用本工具离线解密 → 得到完整无损文件（实测 96000Hz / 24bit / 2ch）→ 交给 HQPlayer 升频。
+AuralDesk ships this tool with the app (`qqapi/app/qmc_decrypt.py`): it fetches the download URL from the QQ Music API → downloads the raw data → appends the server-provided ekey → runs this tool to decrypt offline → gets the complete lossless file (verified 96000 Hz / 24 bit / 2 ch) → hands it to HQPlayer for upsampling.
 
-## 许可证
+## License
 
-[AGPL-3.0](LICENSE)。算法以 [unlock-music](https://github.com/rong6/unlock-music) 的官方 Rust 实现为参照逐一对拍移植。
+[AGPL-3.0](LICENSE). The algorithms are ported 1:1 from the official [unlock-music](https://github.com/rong6/unlock-music) Rust implementation.
 
-Copyright © 2026 [Howen_Xu](https://github.com/HowenXu)（HowenXu）。保留所有权利。
+Copyright © 2026 [Howen_Xu](https://github.com/HowenXu). All rights reserved.
 
-本项目仅供下载学习使用，请在24小时内自行删除。
+For learning purposes only — delete downloaded content within 24 hours.
